@@ -7,10 +7,22 @@ const github = require('@actions/github');
  * @returns {Promise<Array<string>>} Array of tag names
  */
 async function fetchProjectTags(project) {
+  const apiUrl = `https://api.drupal-mrn.dev/project?${new URLSearchParams({ project })}`;
   try {
-    const response = await fetch(`https://api.drupal-mrn.dev/project?project=${project}`);
+    const response = await fetch(apiUrl);
     if (!response.ok) {
+      let errorDetails = `Status: ${response.status}`;
+      try {
+        const errorBody = await response.text();
+        if (errorBody) {
+          errorDetails += `, Response: ${errorBody.substring(0, 200)}`;
+        }
+      } catch (e) {
+        // Ignore errors reading response body
+      }
       core.warning(`Failed to fetch project tags for ${project}: ${response.status}`);
+      core.warning(`API URL: ${apiUrl}`);
+      core.warning(`Error details: ${errorDetails}`);
       return [];
     }
     const data = await response.json();
@@ -101,13 +113,29 @@ async function run() {
         core.info(`Mapped versions for ${pkg.project}: ${pkg.from} → ${mappedFrom}, ${pkg.to} → ${mappedTo}`);
       }
 
-      const apiUrl = `https://api.drupal-mrn.dev/changelog?project=${pkg.project}&from=${mappedFrom}&to=${mappedTo}&format=json`;
+      const apiUrl = `https://api.drupal-mrn.dev/changelog?${new URLSearchParams({
+        project: pkg.project,
+        from: mappedFrom,
+        to: mappedTo,
+        format: 'json'
+      })}`;
 
       try {
         const response = await fetch(apiUrl);
 
         if (!response.ok) {
+          let errorDetails = `Status: ${response.status}`;
+          try {
+            const errorBody = await response.text();
+            if (errorBody) {
+              errorDetails += `, Response: ${errorBody.substring(0, 200)}`;
+            }
+          } catch (e) {
+            // Ignore errors reading response body
+          }
           core.warning(`API returned ${response.status} for ${pkg.project}`);
+          core.warning(`API URL: ${apiUrl}`);
+          core.warning(`Error details: ${errorDetails}`);
           releaseNotesSection += `### ${pkg.name}\n\n`;
           releaseNotesSection += `_Could not fetch release notes (${pkg.from} → ${pkg.to})_\n\n`;
           continue;
