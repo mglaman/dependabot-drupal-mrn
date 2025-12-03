@@ -30108,7 +30108,7 @@ async function run() {
 
               // Then, remove conventional commit format [#12345] if it matches the nid
               // This prevents duplication like "#3554196: [#3554196] fix..." -> "fix..."
-              const conventionalCommitPattern = new RegExp(`\\[#${change.nid}\\]\\s*`, 'i');
+              const conventionalCommitPattern = new RegExp(`^\\[#${change.nid}\\]\\s*`, 'i');
               summaryWithoutId = summaryWithoutId.replace(conventionalCommitPattern, '');
 
               // Clean up any leading whitespace after removals
