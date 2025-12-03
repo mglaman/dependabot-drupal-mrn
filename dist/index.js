@@ -30089,11 +30089,31 @@ async function run() {
 
             releaseNotesSection += `#### ${type}\n\n`;
             for (const change of typeGroup.changes) {
+              // Handle null nid (no issue ID in commit title)
+              if (change.nid === null) {
+                releaseNotesSection += `* ${change.summary}\n`;
+                continue;
+              }
+
               // Use nid from JSON data to create the issue ID link
               const issueId = `#${change.nid}`;
-              // Remove the issue ID prefix from summary (format: #12345: or #12345 by author:)
-              // Match: #12345 followed by optional " by author" and then ": " or just ": "
-              const summaryWithoutId = change.summary.replace(/^#[0-9]+(?:\s+by\s+[^:]+)?:\s*/, '');
+
+              // Remove the issue ID prefix from summary
+              // Handle traditional format: #12345: or #12345 by author:
+              // Also handle conventional commit format: [#12345] (remove if it matches the nid)
+              let summaryWithoutId = change.summary;
+
+              // First, remove traditional format: #12345: or #12345 by author:
+              summaryWithoutId = summaryWithoutId.replace(/^#[0-9]+(?:\s+by\s+[^:]+)?:\s*/, '');
+
+              // Then, remove conventional commit format [#12345] if it matches the nid
+              // This prevents duplication like "#3554196: [#3554196] fix..." -> "fix..."
+              const conventionalCommitPattern = new RegExp(`^\\[#${change.nid}\\]\\s*`, 'i');
+              summaryWithoutId = summaryWithoutId.replace(conventionalCommitPattern, '');
+
+              // Clean up any leading whitespace after removals
+              summaryWithoutId = summaryWithoutId.trim();
+
               releaseNotesSection += `* [${issueId}](${change.link})${summaryWithoutId ? ': ' + summaryWithoutId : ''}\n`;
             }
             releaseNotesSection += '\n';
