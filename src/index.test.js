@@ -425,6 +425,115 @@ describe('Dependabot Drupal Release Notes Action', () => {
         body: expect.stringContaining(`_Error fetching release notes: ${errorMessage}_`)
       });
     });
+
+    it('should handle null nid without creating a link', async () => {
+      const mockData = {
+        from: '10.0.0',
+        to: '10.1.0',
+        changes: [
+          {
+            type: 'Misc',
+            changes: [
+              {
+                nid: null,
+                link: '',
+                type: 'Misc',
+                summary: 'Update .cspell-project-words.txt file'
+              },
+              {
+                nid: '12345',
+                link: 'https://www.drupal.org/i/12345',
+                type: 'Bug',
+                summary: '#12345: Fixed a bug'
+              }
+            ]
+          }
+        ],
+        changeRecords: []
+      };
+
+      global.fetch
+        // Project tags
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ tags: [] })
+        })
+        // Changelog
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockData
+        });
+
+      await run();
+
+      const updateCall = mockOctokit.rest.pulls.update.mock.calls[0][0];
+      const generatedMarkdown = updateCall.body;
+
+      // Should output summary without link for null nid
+      expect(generatedMarkdown).toContain('* Update .cspell-project-words.txt file');
+      // Should still create link for valid nid
+      expect(generatedMarkdown).toContain('[#12345](https://www.drupal.org/i/12345): Fixed a bug');
+      // Should not contain null or empty link
+      expect(generatedMarkdown).not.toContain('[#null]');
+      expect(generatedMarkdown).not.toContain('[]()');
+    });
+
+    it('should handle conventional commit format and prevent duplicate issue IDs', async () => {
+      const mockData = {
+        from: '10.0.0',
+        to: '10.1.0',
+        changes: [
+          {
+            type: 'Misc',
+            changes: [
+              {
+                nid: '3554196',
+                link: 'https://www.drupal.org/i/3554196',
+                type: 'Misc',
+                summary: '#3554196: [#3554196] fix: Non-Ascii Characters In Request Variant Cause Exception'
+              },
+              {
+                nid: '12345',
+                link: 'https://www.drupal.org/i/12345',
+                type: 'Feature',
+                summary: '#12345: [#12345] feat: Add new feature'
+              }
+            ]
+          }
+        ],
+        changeRecords: []
+      };
+
+      global.fetch
+        // Project tags
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ tags: [] })
+        })
+        // Changelog
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockData
+        });
+
+      await run();
+
+      const updateCall = mockOctokit.rest.pulls.update.mock.calls[0][0];
+      const generatedMarkdown = updateCall.body;
+
+      // Should have the issue ID link
+      expect(generatedMarkdown).toContain('[#3554196](https://www.drupal.org/i/3554196)');
+      // Should remove duplicate issue ID from summary (both traditional and conventional formats)
+      expect(generatedMarkdown).toContain(': fix: Non-Ascii Characters In Request Variant Cause Exception');
+      // Should not contain the duplicate [#3554196] in the summary
+      expect(generatedMarkdown).not.toContain('[#3554196] fix:');
+      expect(generatedMarkdown).not.toContain('#3554196: [#3554196]');
+
+      // Test second case
+      expect(generatedMarkdown).toContain('[#12345](https://www.drupal.org/i/12345)');
+      expect(generatedMarkdown).toContain(': feat: Add new feature');
+      expect(generatedMarkdown).not.toContain('[#12345] feat:');
+    });
   });
 
   describe('Grouped updates', () => {
