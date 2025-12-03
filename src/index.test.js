@@ -1,4 +1,4 @@
-const { run } = require('./index');
+const { run, fetchProjectTags, mapVersionToTag } = require('./index');
 const core = require('@actions/core');
 const github = require('@actions/github');
 
@@ -116,6 +116,12 @@ describe('Dependabot Drupal Release Notes Action', () => {
       });
 
       global.fetch
+        // Project tags for core
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ tags: [] })
+        })
+        // Changelog for core
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
@@ -126,6 +132,12 @@ describe('Dependabot Drupal Release Notes Action', () => {
             changeRecords: []
           })
         })
+        // Project tags for token
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ tags: [] })
+        })
+        // Changelog for token
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
@@ -139,9 +151,15 @@ describe('Dependabot Drupal Release Notes Action', () => {
 
       await run();
 
-      expect(global.fetch).toHaveBeenCalledTimes(2);
+      expect(global.fetch).toHaveBeenCalledTimes(4);
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://api.drupal-mrn.dev/project?project=core'
+      );
       expect(global.fetch).toHaveBeenCalledWith(
         'https://api.drupal-mrn.dev/changelog?project=core&from=10.0.0&to=10.1.0&format=json'
+      );
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://api.drupal-mrn.dev/project?project=token'
       );
       expect(global.fetch).toHaveBeenCalledWith(
         'https://api.drupal-mrn.dev/changelog?project=token&from=1.0.0&to=1.1.0&format=json'
@@ -190,10 +208,17 @@ describe('Dependabot Drupal Release Notes Action', () => {
         ],
         changeRecords: []
       };
-      global.fetch.mockResolvedValue({
-        ok: true,
-        json: async () => mockData
-      });
+      global.fetch
+        // Project tags
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ tags: [] })
+        })
+        // Changelog
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockData
+        });
 
       await run();
 
@@ -290,10 +315,17 @@ describe('Dependabot Drupal Release Notes Action', () => {
       process.env.PREVIOUS_VERSION = '8.x-1.8';
       process.env.NEW_VERSION = '8.x-1.9';
 
-      global.fetch.mockResolvedValue({
-        ok: true,
-        json: async () => mockData
-      });
+      global.fetch
+        // Project tags
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ tags: [] })
+        })
+        // Changelog
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockData
+        });
 
       await run();
 
@@ -325,10 +357,17 @@ describe('Dependabot Drupal Release Notes Action', () => {
     });
 
     it('should handle API errors gracefully', async () => {
-      global.fetch.mockResolvedValue({
-        ok: false,
-        status: 404
-      });
+      global.fetch
+        // Project tags
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ tags: [] })
+        })
+        // Changelog API error
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 404
+        });
 
       await run();
 
@@ -342,10 +381,17 @@ describe('Dependabot Drupal Release Notes Action', () => {
     });
 
     it('should handle empty release notes', async () => {
-      global.fetch.mockResolvedValue({
-        ok: true,
-        json: async () => ({ changes: [], changeRecords: [] })
-      });
+      global.fetch
+        // Project tags
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ tags: [] })
+        })
+        // Changelog
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ changes: [], changeRecords: [] })
+        });
 
       await run();
 
@@ -360,7 +406,14 @@ describe('Dependabot Drupal Release Notes Action', () => {
 
     it('should handle fetch errors', async () => {
       const errorMessage = 'Network error';
-      global.fetch.mockRejectedValue(new Error(errorMessage));
+      global.fetch
+        // Project tags
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ tags: [] })
+        })
+        // Changelog fetch error
+        .mockRejectedValueOnce(new Error(errorMessage));
 
       await run();
 
@@ -385,6 +438,12 @@ describe('Dependabot Drupal Release Notes Action', () => {
       });
 
       global.fetch
+        // Project tags for core
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ tags: [] })
+        })
+        // Changelog for core
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
@@ -395,6 +454,12 @@ describe('Dependabot Drupal Release Notes Action', () => {
             changeRecords: []
           })
         })
+        // Project tags for token
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ tags: [] })
+        })
+        // Changelog for token
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
@@ -408,7 +473,7 @@ describe('Dependabot Drupal Release Notes Action', () => {
 
       await run();
 
-      expect(global.fetch).toHaveBeenCalledTimes(2);
+      expect(global.fetch).toHaveBeenCalledTimes(4);
       expect(mockOctokit.rest.pulls.update).toHaveBeenCalledWith({
         owner: 'test-owner',
         repo: 'test-repo',
@@ -433,6 +498,12 @@ describe('Dependabot Drupal Release Notes Action', () => {
       });
 
       global.fetch
+        // Project tags for core
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ tags: [] })
+        })
+        // Changelog for core
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
@@ -443,6 +514,12 @@ describe('Dependabot Drupal Release Notes Action', () => {
             changeRecords: []
           })
         })
+        // Project tags for token
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ tags: [] })
+        })
+        // Changelog for token
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
@@ -491,16 +568,23 @@ describe('Dependabot Drupal Release Notes Action', () => {
         data: { body: 'Existing PR body without release notes' }
       });
 
-      global.fetch.mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          changes: [{
-            type: 'Bug',
-            changes: [{ nid: '1', link: 'https://www.drupal.org/i/1', type: 'Bug', summary: '#1: Bug fix' }]
-          }],
-          changeRecords: []
+      global.fetch
+        // Project tags
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ tags: [] })
         })
-      });
+        // Changelog
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            changes: [{
+              type: 'Bug',
+              changes: [{ nid: '1', link: 'https://www.drupal.org/i/1', type: 'Bug', summary: '#1: Bug fix' }]
+            }],
+            changeRecords: []
+          })
+        });
 
       await run();
 
@@ -514,16 +598,23 @@ describe('Dependabot Drupal Release Notes Action', () => {
       process.env.PREVIOUS_VERSION = '10.0.0';
       process.env.NEW_VERSION = '10.1.0';
 
-      global.fetch.mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          changes: [{
-            type: 'Bug',
-            changes: [{ nid: '1', link: 'https://www.drupal.org/i/1', type: 'Bug', summary: '#1: Bug fix' }]
-          }],
-          changeRecords: []
+      global.fetch
+        // Project tags
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ tags: [] })
         })
-      });
+        // Changelog
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            changes: [{
+              type: 'Bug',
+              changes: [{ nid: '1', link: 'https://www.drupal.org/i/1', type: 'Bug', summary: '#1: Bug fix' }]
+            }],
+            changeRecords: []
+          })
+        });
     });
 
     it('should handle PR with no existing body', async () => {
@@ -554,6 +645,171 @@ describe('Dependabot Drupal Release Notes Action', () => {
         repo: 'test-repo',
         pull_number: 123,
         body: expect.stringMatching(new RegExp(`^${existingBody.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`))
+      });
+    });
+  });
+
+  describe('Version mapping', () => {
+    describe('mapVersionToTag', () => {
+      it('should return version as-is if it exists in tags', () => {
+        const tags = ['1.38.0', '1.40.0', '8.x-1.38', '8.x-1.40'];
+        expect(mapVersionToTag('1.38.0', tags)).toBe('1.38.0');
+        expect(mapVersionToTag('1.40.0', tags)).toBe('1.40.0');
+      });
+
+      it('should map Semver to legacy Drupal 8.x format', () => {
+        const tags = ['8.x-1.38', '8.x-1.40', '8.x-1.39'];
+        expect(mapVersionToTag('1.38.0', tags)).toBe('8.x-1.38');
+        expect(mapVersionToTag('1.40.0', tags)).toBe('8.x-1.40');
+        expect(mapVersionToTag('1.39.0', tags)).toBe('8.x-1.39');
+      });
+
+      it('should return original version if no match found', () => {
+        const tags = ['8.x-1.37', '8.x-1.39'];
+        expect(mapVersionToTag('1.38.0', tags)).toBe('1.38.0');
+        expect(mapVersionToTag('2.0.0', tags)).toBe('2.0.0');
+      });
+
+      it('should handle non-Semver versions', () => {
+        const tags = ['8.x-1.38', '1.38.0'];
+        expect(mapVersionToTag('8.x-1.38', tags)).toBe('8.x-1.38');
+        expect(mapVersionToTag('v1.38.0', tags)).toBe('v1.38.0');
+      });
+    });
+
+    describe('fetchProjectTags', () => {
+      it('should fetch and parse project tags', async () => {
+        const mockTags = [
+          { name: '8.x-1.40' },
+          { name: '8.x-1.39' },
+          { name: '8.x-1.38' }
+        ];
+
+        global.fetch.mockResolvedValue({
+          ok: true,
+          json: async () => ({ tags: mockTags })
+        });
+
+        const tags = await fetchProjectTags('search_api');
+
+        expect(global.fetch).toHaveBeenCalledWith('https://api.drupal-mrn.dev/project?project=search_api');
+        expect(tags).toEqual(['8.x-1.40', '8.x-1.39', '8.x-1.38']);
+      });
+
+      it('should return empty array on API error', async () => {
+        global.fetch.mockResolvedValue({
+          ok: false,
+          status: 404
+        });
+
+        const tags = await fetchProjectTags('nonexistent');
+
+        expect(tags).toEqual([]);
+        expect(core.warning).toHaveBeenCalledWith('Failed to fetch project tags for nonexistent: 404');
+      });
+
+      it('should return empty array on fetch error', async () => {
+        global.fetch.mockRejectedValue(new Error('Network error'));
+
+        const tags = await fetchProjectTags('search_api');
+
+        expect(tags).toEqual([]);
+        expect(core.warning).toHaveBeenCalledWith(expect.stringContaining('Error fetching project tags for search_api'));
+      });
+
+      it('should handle missing tags in response', async () => {
+        global.fetch.mockResolvedValue({
+          ok: true,
+          json: async () => ({ branches: [] })
+        });
+
+        const tags = await fetchProjectTags('search_api');
+
+        expect(tags).toEqual([]);
+      });
+    });
+
+    describe('Integration: version mapping in release notes', () => {
+      beforeEach(() => {
+        process.env.DEPENDENCY_NAMES = 'drupal/search_api';
+        process.env.PREVIOUS_VERSION = '1.38.0';
+        process.env.NEW_VERSION = '1.40.0';
+
+        mockOctokit.rest.pulls.get.mockResolvedValue({
+          data: { body: 'Existing PR body' }
+        });
+      });
+
+      it('should map Semver versions to legacy tags when fetching release notes', async () => {
+        // Mock project tags API
+        global.fetch
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+              tags: [
+                { name: '8.x-1.38' },
+                { name: '8.x-1.39' },
+                { name: '8.x-1.40' }
+              ]
+            })
+          })
+          // Mock changelog API
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+              changes: [{
+                type: 'Bug',
+                changes: [{ nid: '1', link: 'https://www.drupal.org/i/1', type: 'Bug', summary: '#1: Bug fix' }]
+              }],
+              changeRecords: []
+            })
+          });
+
+        await run();
+
+        // Verify project tags were fetched
+        expect(global.fetch).toHaveBeenCalledWith('https://api.drupal-mrn.dev/project?project=search_api');
+
+        // Verify changelog API was called with mapped versions
+        expect(global.fetch).toHaveBeenCalledWith('https://api.drupal-mrn.dev/changelog?project=search_api&from=8.x-1.38&to=8.x-1.40&format=json');
+
+        // Verify PR was updated with correct compare URL using mapped versions
+        expect(mockOctokit.rest.pulls.update).toHaveBeenCalledWith({
+          owner: 'test-owner',
+          repo: 'test-repo',
+          pull_number: 123,
+          body: expect.stringContaining('[compare](https://git.drupalcode.org/project/search_api/-/compare/8.x-1.38...8.x-1.40)')
+        });
+      });
+
+      it('should use original versions if no mapping found', async () => {
+        // Mock project tags API with no matching tags
+        global.fetch
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+              tags: [
+                { name: '1.0.0' },
+                { name: '2.0.0' }
+              ]
+            })
+          })
+          // Mock changelog API
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+              changes: [{
+                type: 'Bug',
+                changes: [{ nid: '1', link: 'https://www.drupal.org/i/1', type: 'Bug', summary: '#1: Bug fix' }]
+              }],
+              changeRecords: []
+            })
+          });
+
+        await run();
+
+        // Verify changelog API was called with original versions
+        expect(global.fetch).toHaveBeenCalledWith('https://api.drupal-mrn.dev/changelog?project=search_api&from=1.38.0&to=1.40.0&format=json');
       });
     });
   });

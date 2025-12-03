@@ -1,6 +1,56 @@
 const core = require('@actions/core');
 const github = require('@actions/github');
 
+/**
+ * Fetches project tags from drupal-mrn API
+ * @param {string} project - The Drupal project name
+ * @returns {Promise<Array<string>>} Array of tag names
+ */
+async function fetchProjectTags(project) {
+  try {
+    const response = await fetch(`https://api.drupal-mrn.dev/project?project=${project}`);
+    if (!response.ok) {
+      core.warning(`Failed to fetch project tags for ${project}: ${response.status}`);
+      return [];
+    }
+    const data = await response.json();
+    return (data.tags || []).map(tag => tag.name);
+  } catch (error) {
+    core.warning(`Error fetching project tags for ${project}: ${error.message}`);
+    return [];
+  }
+}
+
+/**
+ * Maps a Semver version to the actual Git tag name
+ * Handles legacy Drupal versioning (e.g., 1.38.0 -> 8.x-1.38)
+ * @param {string} version - The Semver version (e.g., "1.38.0")
+ * @param {Array<string>} tags - Array of available tag names
+ * @returns {string} The mapped tag name or original version if no match found
+ */
+function mapVersionToTag(version, tags) {
+  // First, check if the version exists as-is (for modern projects)
+  if (tags.includes(version)) {
+    return version;
+  }
+
+  // Try to match Semver pattern (e.g., 1.38.0 -> 8.x-1.38)
+  // Match versions like 1.38.0, 1.40.0, etc.
+  // Only check 8.x prefix since Semver was introduced after Drupal 8.
+  const semverMatch = version.match(/^(\d+)\.(\d+)\.(\d+)$/);
+  if (semverMatch) {
+    const major = semverMatch[1];
+    const minor = semverMatch[2];
+    const legacyTag = `8.x-${major}.${minor}`;
+    if (tags.includes(legacyTag)) {
+      return legacyTag;
+    }
+  }
+
+  // If no match found, return original version
+  return version;
+}
+
 async function run() {
   try {
     const token = process.env.GITHUB_TOKEN;
@@ -42,7 +92,16 @@ async function run() {
     for (const pkg of drupalPackages) {
       core.info(`Fetching release notes for ${pkg.project} from ${pkg.from} to ${pkg.to}`);
 
-      const apiUrl = `https://api.drupal-mrn.dev/changelog?project=${pkg.project}&from=${pkg.from}&to=${pkg.to}&format=json`;
+      // Fetch project tags to map Semver versions to actual Git tags
+      const tags = await fetchProjectTags(pkg.project);
+      const mappedFrom = mapVersionToTag(pkg.from, tags);
+      const mappedTo = mapVersionToTag(pkg.to, tags);
+
+      if (mappedFrom !== pkg.from || mappedTo !== pkg.to) {
+        core.info(`Mapped versions for ${pkg.project}: ${pkg.from} → ${mappedFrom}, ${pkg.to} → ${mappedTo}`);
+      }
+
+      const apiUrl = `https://api.drupal-mrn.dev/changelog?project=${pkg.project}&from=${mappedFrom}&to=${mappedTo}&format=json`;
 
       try {
         const response = await fetch(apiUrl);
@@ -61,8 +120,9 @@ async function run() {
           releaseNotesSection += `### ${pkg.name}\n\n`;
 
           // Add version info with link to release notes page and compare link
-          const releaseNotesUrl = `https://www.drupal.org/project/${pkg.project}/releases/${pkg.to}`;
-          const compareUrl = `https://git.drupalcode.org/project/${pkg.project}/-/compare/${pkg.from}...${pkg.to}`;
+          // Use mapped versions for URLs, but show original versions in text
+          const releaseNotesUrl = `https://www.drupal.org/project/${pkg.project}/releases/${mappedTo}`;
+          const compareUrl = `https://git.drupalcode.org/project/${pkg.project}/-/compare/${mappedFrom}...${mappedTo}`;
           releaseNotesSection += `**${pkg.from} → [${pkg.to}](${releaseNotesUrl})** ([compare](${compareUrl}))\n\n`;
 
           // Changes are now pre-grouped and sorted by type in the API response
@@ -101,7 +161,7 @@ async function run() {
           releaseNotesSection += '\n';
         } else {
           releaseNotesSection += `### ${pkg.name}\n\n`;
-          const releaseNotesUrl = `https://www.drupal.org/project/${pkg.project}/releases/${pkg.to}`;
+          const releaseNotesUrl = `https://www.drupal.org/project/${pkg.project}/releases/${mappedTo}`;
           releaseNotesSection += `**${pkg.from} → [${pkg.to}](${releaseNotesUrl})**\n\n`;
           releaseNotesSection += `_No release notes available_\n\n`;
         }
@@ -160,4 +220,4 @@ if (require.main === module) {
   run();
 }
 
-module.exports = { run };
+module.exports = { run, fetchProjectTags, mapVersionToTag };
