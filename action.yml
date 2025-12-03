@@ -1,0 +1,30 @@
+name: 'Dependabot Drupal Release Notes'
+description: 'Generates release notes for Drupal dependencies in Dependabot PRs using drupal-mrn.dev'
+author: 'Matt Glaman'
+branding:
+  icon: 'file-text'
+  color: 'blue'
+
+inputs:
+  github-token:
+    description: 'The GitHub token used to fetch metadata and update the PR.'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Fetch Dependabot metadata
+      id: dependabot-metadata
+      uses: dependabot/fetch-metadata@v2
+      with:
+        github-token: "${{ inputs.github-token }}"
+
+    - name: Add Drupal release notes
+      if: contains(steps.dependabot-metadata.outputs.dependency-names, 'drupal/')
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        DEPENDENCY_NAMES: ${{ steps.dependabot-metadata.outputs.dependency-names }}
+        PREVIOUS_VERSION: ${{ steps.dependabot-metadata.outputs.previous-version }}
+        NEW_VERSION: ${{ steps.dependabot-metadata.outputs.new-version }}
+      run: node ${{ github.action_path }}/dist/index.js
