@@ -8,7 +8,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "verify-dist": "npm run build && (git diff --exit-code dist/ 2>/dev/null || (echo '❌ dist/ is out of date. Run npm run build and commit.' && exit 1)) || echo '⚠️  Not in a git repository. dist/ has been built.'"
+    "verify-dist": "npm run build && (git diff --exit-code dist/ 2>/dev/null || (echo '❌ dist/ is out of date. Run npm run build and commit.' && exit 1)) || echo '⚠️  Not in a git repository. dist/ has been built.'",
+    "prepare": "husky"
   },
   "keywords": [
     "actions",
@@ -23,6 +24,7 @@
   },
   "devDependencies": {
     "@vercel/ncc": "^0.38.1",
+    "husky": "^9.1.7",
     "jest": "^29.7.0"
   }
 }
